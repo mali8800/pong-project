@@ -59,7 +59,7 @@ if __name__ == '__main__':
             
             # TODO: Add the transition to the replay memory. Remember to convert
             #       everything to PyTorch tensors!
-
+            
             # TODO: Run DQN.optimize() every env_config["train_frequency"] steps.
 
             # TODO: Update the target network every env_config["target_update_frequency"] steps.

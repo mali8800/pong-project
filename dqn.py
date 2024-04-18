@@ -2,6 +2,7 @@ import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -42,6 +43,7 @@ class DQN(nn.Module):
         self.eps_end = env_config["eps_end"]
         self.anneal_length = env_config["anneal_length"]
         self.n_actions = env_config["n_actions"]
+        self.eps = self.eps_start
 
         self.fc1 = nn.Linear(4, 256)
         self.fc2 = nn.Linear(256, self.n_actions)
@@ -53,9 +55,12 @@ class DQN(nn.Module):
         """Runs the forward pass of the NN depending on architecture."""
         x = self.relu(self.fc1(x))
         x = self.fc2(x)
-
         return x
 
+    """
+    State dimension of 4 meaning what? 
+    Is it 4 frames or a pre-processed value of state, action reward sequence?
+    """
     def act(self, observation, exploit=False):
         """Selects an action with an epsilon-greedy exploration strategy."""
         # TODO: Implement action selection using the Deep Q-network. This function
@@ -63,9 +68,22 @@ class DQN(nn.Module):
         #       For example, if the state dimension is 4 and the batch size is 32,
         #       the input would be a [32, 4] tensor and the output a [32, 1] tensor.
         # TODO: Implement epsilon-greedy exploration.
+        
+        q_values = self.forward(observation)
+        best_actions = torch.argmax(q_values, axis=1)
 
-        raise NotImplmentedError
+        self.eps -= (self.eps_start - self.eps_end) / self.anneal_length
+        
 
+        if not exploit:
+            random_actions = torch.randint(self.n_actions, size=(len(observation),))
+            mask = torch.rand(len(observation)) > epsilon
+            actions = torch.where(mask, best_actions, random_actions)
+        else:
+            actions = best_actions
+
+        return actions
+        
 def optimize(dqn, target_dqn, memory, optimizer):
     """This function samples a batch from the replay buffer and optimizes the Q-network."""
     # If we don't have enough transitions stored yet, we don't train.
