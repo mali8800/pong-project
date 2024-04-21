@@ -7,8 +7,9 @@ import config
 from utils import preprocess
 from evaluate import evaluate_policy
 from dqn import DQN, ReplayMemory, optimize
+import os
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "mps")
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--env', choices=['CartPole-v1'], default='CartPole-v1')
@@ -31,7 +32,6 @@ if __name__ == '__main__':
     dqn = DQN(env_config=env_config).to(device)
     # TODO: Create and initialize target Q-network.
     target_dqn = DQN(env_config=env_config).to(device)
-
     # Create replay memory.
     memory = ReplayMemory(env_config['memory_size'])
 
@@ -53,18 +53,19 @@ if __name__ == '__main__':
             # TODO: Get action from DQN.
             action = dqn.act(obs, exploit=False)
 
+            
             # Act in the true environment.
             old_obs = obs
-            obs, reward, terminated, truncated, info = env.step(action)
+            obs, reward, terminated, truncated, info = env.step(action.item())
 
             # Preprocess incoming observation.
-            if not terminated:
-                obs = preprocess(obs, env=args.env).unsqueeze(0)
+            # if not terminated:
+            obs = preprocess(obs, env=args.env).unsqueeze(0)
             
             # TODO: Add the transition to the replay memory. Remember to convert
             #       everything to PyTorch tensors!
-            reward = torch.tensor(reward)
-            memory.push(old_obs, action, obs, reward)
+            reward = torch.tensor(reward, device=device).float()
+            memory.push(old_obs, action, obs, reward, terminated)
             
             # TODO: Run DQN.optimize() every env_config["train_frequency"] steps.
             if step % env_config["train_frequency"] == 0:
@@ -84,6 +85,8 @@ if __name__ == '__main__':
                 best_mean_return = mean_return
 
                 print('Best performance so far! Saving model.')
+                if not os.path.exists("models"):
+                    os.makedirs("models")
                 torch.save(dqn, f'models/{args.env}_best.pt')
         
     # Close environment after training is completed.

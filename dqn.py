@@ -4,8 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+device = torch.device("cuda" if torch.cuda.is_available() else "mps")
 
 class ReplayMemory:
     def __init__(self, capacity):
@@ -16,11 +15,11 @@ class ReplayMemory:
     def __len__(self):
         return len(self.memory)
 
-    def push(self, obs, action, next_obs, reward):
+    def push(self, obs, action, next_obs, reward, terminated):
         if len(self.memory) < self.capacity:
             self.memory.append(None)
 
-        self.memory[self.position] = (obs, action, next_obs, reward)
+        self.memory[self.position] = (obs, action, next_obs, reward, terminated)
         self.position = (self.position + 1) % self.capacity
 
     def sample(self, batch_size):
@@ -71,13 +70,12 @@ class DQN(nn.Module):
         
         q_values = self.forward(observation)
         best_actions = torch.argmax(q_values, axis=1)
-
         self.eps -= (self.eps_start - self.eps_end) / self.anneal_length
         
 
         if not exploit:
-            random_actions = torch.randint(self.n_actions, size=(len(observation),))
-            mask = torch.rand(len(observation)) > epsilon
+            random_actions = torch.randint(self.n_actions, size=(len(observation),), device=device)
+            mask = torch.rand(len(observation), device=device) > self.eps
             actions = torch.where(mask, best_actions, random_actions)
         else:
             actions = best_actions
@@ -94,12 +92,24 @@ def optimize(dqn, target_dqn, memory, optimizer):
     #       four tensors in total: observations, actions, next observations and rewards.
     #       Remember to move them to GPU if it is available, e.g., by using Tensor.to(device).
     #       Note that special care is needed for terminal transitions!
+    
+    (obs, action, next_obs, reward, terminated) = memory.sample(dqn.batch_size)
+
+
+    obs = torch.stack(obs).to(device)
+    action = torch.stack(action).to(device)
+    next_obs = torch.stack(next_obs).to(device)
+    reward = torch.stack(reward).to(device)
+    terminated = torch.tensor(terminated).to(device)
 
     # TODO: Compute the current estimates of the Q-values for each state-action
     #       pair (s,a). Here, torch.gather() is useful for selecting the Q-values
     #       corresponding to the chosen actions.
+    q_values = torch.gather(dqn.forward(obs), dim=1, index=action.unsqueeze(1))
     
-    # TODO: Compute the Q-value targets. Only do this for non-terminal transitions!
+    q_value_targets = reward + dqn.gamma * torch.max(target_dqn.forward(next_obs), dim=2).values.squeeze()
+
+    q_value_targets[terminated] = reward[terminated]
     
     # Compute loss.
     loss = F.mse_loss(q_values.squeeze(), q_value_targets)
