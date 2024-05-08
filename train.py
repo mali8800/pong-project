@@ -4,12 +4,12 @@ import gymnasium as gym
 import torch
 
 import config
-from utils import preprocess
+from utils import preprocess, get_device
 from evaluate import evaluate_policy
 from dqn import DQN, ReplayMemory, optimize
 import os
 
-device = torch.device("cuda" if torch.cuda.is_available() else "mps")
+device = get_device()
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--env', choices=['CartPole-v1'], default='CartPole-v1')
@@ -60,7 +60,7 @@ if __name__ == '__main__':
             obs, reward, terminated, truncated, info = env.step(action.item())
 
             # Preprocess incoming observation.
-            # if not terminated:
+            #if not terminated:
             obs = preprocess(obs, env=args.env).unsqueeze(0)
             
             # TODO: Add the transition to the replay memory. Remember to convert

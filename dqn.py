@@ -3,8 +3,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+from utils import get_device
 
-device = torch.device("cuda" if torch.cuda.is_available() else "mps")
+device = get_device()
 
 class ReplayMemory:
     def __init__(self, capacity):
@@ -103,10 +104,9 @@ def optimize(dqn, target_dqn, memory, optimizer):
     # TODO: Compute the current estimates of the Q-values for each state-action
     #       pair (s,a). Here, torch.gather() is useful for selecting the Q-values
     #       corresponding to the chosen actions.
+    
     test = dqn.forward(obs)
-  
     q_values = test.gather(2, action.unsqueeze(1))
-
     q_value_targets = reward + (dqn.gamma * target_dqn.forward(next_obs).max(2).values)
     q_value_targets[terminated] = reward[terminated]
     # Compute loss.
