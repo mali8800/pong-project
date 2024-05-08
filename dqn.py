@@ -70,17 +70,11 @@ class DQN(nn.Module):
         
         q_values = self.forward(observation)
         best_actions = torch.argmax(q_values, axis=1)
-        self.eps -= (self.eps_start - self.eps_end) / self.anneal_length
+        self.eps = max(self.eps - (self.eps_start - self.eps_end) / self.anneal_length, self.eps_end)
         
-
-        if not exploit:
-            random_actions = torch.randint(self.n_actions, size=(len(observation),), device=device)
-            mask = torch.rand(len(observation), device=device) > self.eps
-            actions = torch.where(mask, best_actions, random_actions)
-        else:
-            actions = best_actions
-
-        return actions
+        if np.random.rand() < self.eps and not exploit:
+            return torch.randint(self.n_actions, (observation.shape[0],)).to(device)
+        return best_actions
         
 def optimize(dqn, target_dqn, memory, optimizer):
     """This function samples a batch from the replay buffer and optimizes the Q-network."""
@@ -95,25 +89,21 @@ def optimize(dqn, target_dqn, memory, optimizer):
     
     (obs, action, next_obs, reward, terminated) = memory.sample(dqn.batch_size)
 
-
     obs = torch.stack(obs).to(device)
     action = torch.stack(action).to(device)
     next_obs = torch.stack(next_obs).to(device)
     reward = torch.stack(reward).to(device)
     terminated = torch.tensor(terminated).to(device)
-
+  
     # TODO: Compute the current estimates of the Q-values for each state-action
     #       pair (s,a). Here, torch.gather() is useful for selecting the Q-values
     #       corresponding to the chosen actions.
-    q_values = torch.gather(dqn.forward(obs), dim=1, index=action.unsqueeze(1))
+    q_values = dqn.forward(obs).gather(1, action.unsqueeze(1))
     
-    q_value_targets = reward + dqn.gamma * torch.max(target_dqn.forward(next_obs), dim=2).values.squeeze()
-
+    q_value_targets = reward + (dqn.gamma * target_dqn.forward(next_obs).max(2).values)
     q_value_targets[terminated] = reward[terminated]
-    
     # Compute loss.
-    loss = F.mse_loss(q_values.squeeze(), q_value_targets)
-
+    loss = F.mse_loss(q_values.squeeze(1), q_value_targets)
     # Perform gradient descent.
     optimizer.zero_grad()
 
