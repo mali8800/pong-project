@@ -41,15 +41,16 @@ if __name__ == '__main__':
 
     # Keep track of best evaluation mean return achieved so far.
     best_mean_return = -float("Inf")
+    step = 0
 
     for episode in range(env_config['n_episodes']):
         terminated = False
+        truncated = False
         obs, info = env.reset()
 
         obs = preprocess(obs, env=args.env).unsqueeze(0)
         loss = 0
-        step = 0
-        while not terminated:
+        while not terminated and not truncated:
             step += 1
             # TODO: Get action from DQN.
             action = dqn.act(obs, exploit=False)
@@ -74,6 +75,7 @@ if __name__ == '__main__':
             # TODO: Update the target network every env_config["target_update_frequency"] steps.
             if step % env_config["target_update_frequency"] == 0:
                 target_dqn.load_state_dict(dqn.state_dict())
+
 
         # Evaluate the current agent.
         if episode % args.evaluate_freq == 0:
