@@ -72,9 +72,14 @@ class DQN(nn.Module):
         best_actions = torch.argmax(q_values, axis=1)
         self.eps = max(self.eps - (self.eps_start - self.eps_end) / self.anneal_length, self.eps_end)
         
-        if np.random.rand() < self.eps and not exploit:
-            return torch.randint(self.n_actions, (observation.shape[0],)).to(device)
-        return best_actions
+        if not exploit:
+            random_actions = torch.randint(self.n_actions, size=(len(observation),), device=device)
+            mask = torch.rand(len(observation), device=device) > self.eps
+            actions = torch.where(mask, best_actions, random_actions)
+        else:
+            actions = best_actions
+
+        return actions
         
 def optimize(dqn, target_dqn, memory, optimizer):
     """This function samples a batch from the replay buffer and optimizes the Q-network."""
@@ -98,8 +103,10 @@ def optimize(dqn, target_dqn, memory, optimizer):
     # TODO: Compute the current estimates of the Q-values for each state-action
     #       pair (s,a). Here, torch.gather() is useful for selecting the Q-values
     #       corresponding to the chosen actions.
-    q_values = dqn.forward(obs).gather(1, action.unsqueeze(1))
-    
+    test = dqn.forward(obs)
+  
+    q_values = test.gather(2, action.unsqueeze(1))
+
     q_value_targets = reward + (dqn.gamma * target_dqn.forward(next_obs).max(2).values)
     q_value_targets[terminated] = reward[terminated]
     # Compute loss.
