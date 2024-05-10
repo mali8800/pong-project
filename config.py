@@ -15,7 +15,6 @@ n_actions: The number of actions can easily be accessed with env.action_space.n,
     some manual engineering to account for the fact that Pong has duplicate actions.
 """
 
-
 # Hyperparameters for CartPole-v1
 CartPole = {
     'memory_size': 50000,

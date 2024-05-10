@@ -3,6 +3,7 @@ import argparse
 import gymnasium as gym
 import torch
 
+import matplotlib.pyplot as plt
 import config
 from utils import preprocess, get_device
 from evaluate import evaluate_policy
@@ -21,12 +22,20 @@ ENV_CONFIGS = {
     'CartPole-v1': config.CartPole
 }
 
-if __name__ == '__main__':
-    args = parser.parse_args()
+default_args = {
+    'env': 'CartPole-v1',
+    'evaluate_freq': 25,
+    'evaluation_episodes': 1
+}
 
+def train(args=default_args, config=None):
+    print(device)
     # Initialize environment and config.
-    env = gym.make(args.env)
-    env_config = ENV_CONFIGS[args.env]
+    env = gym.make(args['env'])
+    env_config = ENV_CONFIGS[args['env']]
+    if config:
+        env_config = config
+    
 
     # Initialize deep Q-networks.
     dqn = DQN(env_config=env_config).to(device)
@@ -43,12 +52,14 @@ if __name__ == '__main__':
     best_mean_return = -float("Inf")
     step = 0
 
+    eval = []
+
     for episode in range(env_config['n_episodes']):
         terminated = False
         truncated = False
         obs, info = env.reset()
 
-        obs = preprocess(obs, env=args.env).unsqueeze(0)
+        obs = preprocess(obs, env=args['env']).unsqueeze(0)
         loss = 0
         while not terminated and not truncated:
             step += 1
@@ -61,7 +72,7 @@ if __name__ == '__main__':
 
             # Preprocess incoming observation.
             #if not terminated:
-            obs = preprocess(obs, env=args.env).unsqueeze(0)
+            obs = preprocess(obs, env=args['env']).unsqueeze(0)
             
             # TODO: Add the transition to the replay memory. Remember to convert
             #       everything to PyTorch tensors!
@@ -78,8 +89,9 @@ if __name__ == '__main__':
 
 
         # Evaluate the current agent.
-        if episode % args.evaluate_freq == 0:
-            mean_return = evaluate_policy(dqn, env, env_config, args, n_episodes=args.evaluation_episodes)
+        if episode % args['evaluate_freq'] == 0:
+            mean_return = evaluate_policy(dqn, env, env_config, args, n_episodes=args['evaluation_episodes'])
+            eval.append(mean_return)
             print(f'Episode {episode+1}/{env_config["n_episodes"]}: {mean_return}')
 
             # Save current agent if it has the best performance so far.
@@ -89,7 +101,15 @@ if __name__ == '__main__':
                 print('Best performance so far! Saving model.')
                 if not os.path.exists("models"):
                     os.makedirs("models")
-                torch.save(dqn, f'models/{args.env}_best.pt')
-        
+                torch.save(dqn, f"models/{args['env']}_best.pt")
+    
     # Close environment after training is completed.
     env.close()
+    return eval
+
+
+if __name__ == '__main__':
+    args = parser.parse_args()
+    args = args.__dict__
+    eval = train(args)
+  

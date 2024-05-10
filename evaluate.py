@@ -28,7 +28,7 @@ def evaluate_policy(dqn, env, env_config, args, n_episodes, render=False, verbos
     total_return = 0
     for i in range(n_episodes):
         obs, info = env.reset()
-        obs = preprocess(obs, env=args.env).unsqueeze(0)
+        obs = preprocess(obs, env=args['env']).unsqueeze(0)
 
         terminated = False
         truncated = False
@@ -40,7 +40,7 @@ def evaluate_policy(dqn, env, env_config, args, n_episodes, render=False, verbos
 
             action = dqn.act(obs, exploit=True).item()
             obs, reward, terminated, truncated, info = env.step(action)
-            obs = preprocess(obs, env=args.env).unsqueeze(0)
+            obs = preprocess(obs, env=args['env']).unsqueeze(0)
 
             episode_return += reward
         
@@ -54,6 +54,7 @@ def evaluate_policy(dqn, env, env_config, args, n_episodes, render=False, verbos
 
 if __name__ == '__main__':
     args = parser.parse_args()
+    args = args.__dict__
 
     # Initialize environment and config
     env = gym.make(args.env)
