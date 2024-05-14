@@ -11,12 +11,14 @@ from evaluate import evaluate_policy
 from dqn import DQN, ReplayMemory, optimize
 import os
 import numpy as np
+import matplotlib.pyplot as plt
+
 
 device = get_device()
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--env', choices=['ALE/Pong-v5'], default='ALE/Pong-v5')
-parser.add_argument('--evaluate_freq', type=int, default=1, help='How often to run evaluation.', nargs='?')
+parser.add_argument('--evaluate_freq', type=int, default=10, help='How often to run evaluation.', nargs='?')
 parser.add_argument('--evaluation_episodes', type=int, default=3, help='Number of evaluation episodes.', nargs='?')
 
 
@@ -119,4 +121,21 @@ if __name__ == '__main__':
     args = parser.parse_args()
     args = args.__dict__
     eval = train(args)
+    # Create plots
+
+    # Data
+    episodes = [i for i in range(1, 1000, 10)]
+
+    # Plot
+    plt.figure(figsize=(10, 6))
+    plt.plot(episodes, eval, linestyle='-', color='b')
+    plt.title('Policy Evaluation over 1000 Episodes')
+    plt.xlabel('Episode')
+    plt.ylabel('Reward')
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    if not os.path.exists("plots/"):
+        os.makedirs("plots/")
+    plt.savefig('plots/ALE_Pong-v5.png')
   

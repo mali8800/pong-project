@@ -42,7 +42,7 @@ Pong = {
     'eps_end': 0.01,
     'anneal_length': 10**6,
     'n_actions': 2,
-    'n_episodes': 5,
+    'n_episodes': 1000,
 }
 
 # Hyperparameter configurations for different environments. See config.py.
