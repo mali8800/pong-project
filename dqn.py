@@ -77,7 +77,9 @@ class DQN(nn.Module):
         # TODO: Implement epsilon-greedy exploration.
         
         q_values = self.forward(observation)
+        
         best_actions = torch.argmax(q_values, axis=1)
+        
         self.eps = max(self.eps - (self.eps_start - self.eps_end) / self.anneal_length, self.eps_end)
         
         if not exploit:
@@ -86,7 +88,6 @@ class DQN(nn.Module):
             actions = torch.where(mask, best_actions, random_actions)
         else:
             actions = best_actions
-
         return actions
         
 def optimize(dqn, target_dqn, memory, optimizer):
@@ -101,23 +102,22 @@ def optimize(dqn, target_dqn, memory, optimizer):
     #       Note that special care is needed for terminal transitions!
     
     (obs, action, next_obs, reward, terminated) = memory.sample(dqn.batch_size)
-
-    obs = torch.stack(obs).to(device)
+    obs = torch.stack(obs).to(device).squeeze(1)
     action = torch.stack(action).to(device)
-    next_obs = torch.stack(next_obs).to(device)
+    next_obs = torch.stack(next_obs).to(device).squeeze(1)
     reward = torch.stack(reward).to(device)
     terminated = torch.tensor(terminated).to(device)
   
     # TODO: Compute the current estimates of the Q-values for each state-action
     #       pair (s,a). Here, torch.gather() is useful for selecting the Q-values
     #       corresponding to the chosen actions.
-    
-    test = dqn.forward(obs)
-    q_values = test.gather(2, action.unsqueeze(1))
-    q_value_targets = reward + (dqn.gamma * target_dqn.forward(next_obs).max(2).values)
+
+    q_values = dqn.forward(obs).gather(1, action)
+    q_value_targets = reward + (dqn.gamma * target_dqn.forward(next_obs).max(1).values).unsqueeze(1)
+
     q_value_targets[terminated] = reward[terminated]
     # Compute loss.
-    loss = F.mse_loss(q_values.squeeze(1), q_value_targets)
+    loss = F.mse_loss(q_values, q_value_targets)
     # Perform gradient descent.
     optimizer.zero_grad()
 

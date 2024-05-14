@@ -14,7 +14,7 @@ def preprocess(obs, env):
     if env in ['CartPole-v1']:
         return torch.tensor(obs, device=get_device()).float()
     elif env in ['ALE/Pong-v5']:
-        obs = np.array(obs, dtype=np.float32) / 255.0
-        return torch.stack(obs, device=get_device())
+        obs = obs / 255
+        return torch.tensor(obs, device=get_device()).float()
     else:
         return None

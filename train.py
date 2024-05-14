@@ -5,6 +5,7 @@ import torch
 from gymnasium.wrappers import AtariPreprocessing
 import matplotlib.pyplot as plt
 import config
+from config import ENV_CONFIGS
 from utils import preprocess, get_device
 from evaluate import evaluate_policy
 from dqn import DQN, ReplayMemory, optimize
@@ -15,17 +16,14 @@ device = get_device()
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--env', choices=['ALE/Pong-v5'], default='ALE/Pong-v5')
-parser.add_argument('--evaluate_freq', type=int, default=25, help='How often to run evaluation.', nargs='?')
-parser.add_argument('--evaluation_episodes', type=int, default=5, help='Number of evaluation episodes.', nargs='?')
+parser.add_argument('--evaluate_freq', type=int, default=1, help='How often to run evaluation.', nargs='?')
+parser.add_argument('--evaluation_episodes', type=int, default=3, help='Number of evaluation episodes.', nargs='?')
 
-# Hyperparameter configurations for different environments. See config.py.
-ENV_CONFIGS = {
-    'Pong': config.Pong
-}
+
 
 default_args = {
     'env': 'ALE/Pong-v5',
-    'evaluate_freq': 25,
+    'evaluate_freq': 1,
     'evaluation_episodes': 1    
 }
 
@@ -61,11 +59,10 @@ def train(args=default_args, config=None):
         terminated = False
         truncated = False
         obs, info = env.reset()
-        
+
         obs = preprocess(obs, env=args['env']).unsqueeze(0)
 
         obs_stack = torch.cat(env_config['obs_stack_size'] * [obs]).unsqueeze(0).to(device)
-
 
         loss = 0
         while not terminated and not truncated:
@@ -75,12 +72,13 @@ def train(args=default_args, config=None):
 
             # Act in the true environment.
             old_obs_stack = obs_stack
-            obs, reward, terminated, truncated, info = env.step(action.item() + 2)
+            a = action.item() + 2
+            #print(a)
+            obs, reward, terminated, truncated, info = env.step(a)
 
             # Preprocess incoming observation.
             #if not terminated:
             obs = preprocess(obs, env=args['env']).unsqueeze(0)
-            
             obs_stack = torch.cat((obs_stack[:, 1:, ...], obs.unsqueeze(1)), dim=1).to(device)
 
             # TODO: Add the transition to the replay memory. Remember to convert
@@ -108,8 +106,8 @@ def train(args=default_args, config=None):
                 best_mean_return = mean_return
 
                 print('Best performance so far! Saving model.')
-                if not os.path.exists("models"):
-                    os.makedirs("models")
+                if not os.path.exists("models/ALE"):
+                    os.makedirs("models/ALE")
                 torch.save(dqn, f"models/{args['env']}_best.pt")
     
     # Close environment after training is completed.
